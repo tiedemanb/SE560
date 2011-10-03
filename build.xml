@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<project name="Buildfile" default="buildwebapp" basedir=".">
+  <property environment="env"/>
+  <property name="webapp.home" value="${env.JETTY_HOME}/webapps/homework"/>
+  <path id="compile.classpath">
+    <fileset dir="${env.JETTY_HOME}/lib">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+  <target name="prepare">
+    <mkdir dir="build"/>
+    <mkdir dir="build"/>
+    <mkdir dir="build/WEB-INF"/>
+    <mkdir dir="build/WEB-INF/classes"/>
+  </target>
+  <target name="compile" depends="prepare">
+    <javac destdir="build/WEB-INF/classes" debug="true" includeAntRuntime="false">
+      <src path="src"/>
+      <classpath refid="compile.classpath"/>
+    </javac>
+  </target>
+  <target name="clean">
+    <delete dir="build"/>
+  </target>
+  <target name="buildwebapp" depends="compile">
+    <copy todir="build/WEB-INF">
+      <fileset dir=".">
+        <include name="web.xml"/>
+      </fileset>
+    </copy>
+    <jar basedir="build" jarfile="${env.JETTY_HOME}/webapps/root.war"/>
+  </target>
+</project>
