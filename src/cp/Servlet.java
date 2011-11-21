@@ -119,19 +119,27 @@ public class Servlet extends HttpServlet
             response.setContentType("text/plain");
             PrintWriter pw = response.getWriter();
 
-        	Connection con = getConnection();
+        	Connection con = DBHelper.getConnection();
         	if (con != null) {
 	        	try {
 	        		Statement stmt = con.createStatement();
-	        		String sql = "CREATE TABLE IF NOT EXISTS se560.urls (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, url VARCHAR(500))";
+	        		String sql = "CREATE TABLE IF NOT EXISTS urls " +
+	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, url VARCHAR(500))";
 	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS se560.userlist (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
+	        		sql = "CREATE TABLE IF NOT EXISTS userlist " +
+	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
 	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS se560.userurls (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), FOREIGN KEY(userid) REFERENCES se560.userlist(id))";
+	        		sql = "CREATE TABLE IF NOT EXISTS userurls " +
+	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
+	        			"FOREIGN KEY(userid) REFERENCES userlist(id))";
 	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS se560.comments (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, comment VARCHAR(500), FOREIGN KEY(urlid) REFERENCES se560.userurls(id))";
+	        		sql = "CREATE TABLE IF NOT EXISTS comments " +
+	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, comment VARCHAR(500), " + 
+	        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
 	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS se560.categories (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, category VARCHAR(500), FOREIGN KEY(urlid) REFERENCES se560.userurls(id))";
+	        		sql = "CREATE TABLE IF NOT EXISTS categories " +
+	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, category VARCHAR(500), " + 
+	        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
 	        		stmt.executeUpdate(sql);
 	        		stmt.close();
 	        		con.close();
@@ -148,7 +156,7 @@ public class Servlet extends HttpServlet
         }
 	    else if (uri.matches("/v2/users")) {
             PrintWriter pw = response.getWriter();
-            String[] users = getUsersFromDB();
+            String[][] users = DBHelper.getUsersFromDB();
             if (xmlOnly) {
             	//response.setContentType("application/xml");
             	pw.println("stub");
@@ -157,14 +165,16 @@ public class Servlet extends HttpServlet
             	response.setContentType("application/xhtml+xml");
             	pw.println("<ul class=\"users\">");
             	for (int i = 0; i < users.length; i++) {
-            		pw.println("<li class=\"user\"><a href=\"/v2/users/"+users[i]+"\" rel=\"details\">"+users[i]+"</a></li>");
+            		pw.println("<li class=\"user\">" +
+            			"<a href=\"/v2/users/"+users[i][1]+"\" rel=\"details\">"+users[i][0]+"</a>" +
+            			"</li>");
             	}
             	pw.println("</ul>");
             }
 	    }
 	    else if (uri.matches("/v2/users/[^/]*")) {
 			String user = uri.substring(("/v2/users/").length());
-			String node = getUserNodeFromDB(user);
+			String node = DBHelper.getUserNodeFromDB(user);
             PrintWriter pw = response.getWriter();
             if (xmlOnly) {
             	//response.setContentType("application/xml");
@@ -183,7 +193,7 @@ public class Servlet extends HttpServlet
 	    else if (uri.matches("/v2/users/[^/]*/urls")) {
 			String user = uri.substring(("/v2/users/").length());
 			user = user.substring(0, user.length()-5);
-			String[] urls = getUserUrlsFromDB(user);
+			String[] urls = DBHelper.getUserUrlsFromDB(user);
             PrintWriter pw = response.getWriter();
             if (xmlOnly) {
             	//response.setContentType("application/xml");
@@ -307,7 +317,14 @@ public class Servlet extends HttpServlet
 	    	}
 	    	
 	    	if ((email.length()) > 0 && (node.length() > 0)) {
-	    		if (createUser(email, node)) {
+	            response.setContentType("text/plain");
+	            if (DBHelper.getUserCountFromDB(email) != 0) {
+		            response.setContentType("text/plain");
+		            
+		    		pw.println("user already in database");
+		    		return;
+	            }
+	            else if (DBHelper.createUser(email, node)) {
 		            response.setContentType("text/plain");
 		            
 		    		pw.println("user created successfully");
@@ -336,134 +353,5 @@ public class Servlet extends HttpServlet
     		pw.println("page not found");
     		return;
 	    }
-	}
-
-	private Connection getConnection() {
-		Connection connection = null;
-		try {
-		    String driverName = "com.mysql.jdbc.Driver";
-		    Class.forName(driverName);
-
-		    String serverName = "se560.cvdmxatvytbj.us-east-1.rds.amazonaws.com:3306";
-		    String mydatabase = "se560";
-		    String url = "jdbc:mysql://" + serverName +  "/" + mydatabase;
-		    String username = "btiedema";
-		    String password = "18273645"; // <- throwaway password, of course
-		    connection = DriverManager.getConnection(url, username, password);
-		}
-		catch (ClassNotFoundException e) {
-			return null;
-		}
-		catch (SQLException e) {
-			return null;
-		}
-		return connection;
-	}
-
-	private boolean addUrlToDB(String url) {
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				stmt.executeUpdate("INSERT INTO se560.urls VALUES ('"+url+"')");
-				con.close();
-				return true;
-			}
-			catch (Exception e) {
-				return false;
-			}
-		}
-		return false;
-	}
-
-	private String[] getUrlsFromDB() {
-		return getStringsFromDB("urls", "url", "");
-	}
-
-	private String[] getUsersFromDB() {
-		return getStringsFromDB("userlist", "username", "");
-	}
-
-	private String[] getUserUrlsFromDB(String username) {
-		return getStringsFromDB("userurls", "url", "WHERE '"+username+"' = se560.userlist.username AND se560.userlist.id = se560.userurls.userid");
-	}
-	
-	private String getUrlFromDB(int urlid) {
-		return getStringFromDB("userurls", "url", "WHERE '"+urlid+"' = se560.userurls.id");
-	}
-
-	private String[] getCategoriesFromDB(int urlid) {
-		return getStringsFromDB("categories", "category", "WHERE '"+urlid+"' = se560.userurls.id");
-	}
-
-	private String[] getCommentsFromDB(int urlid) {
-		return getStringsFromDB("comments", "comment", "WHERE '"+urlid+"' = se560.userurls.id");
-	}
-	
-	private String getUserNodeFromDB(String username) {
-		return getStringFromDB("userlist", "usernode", "");
-	}
-	
-	private boolean createUser(String email, String node) {
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				stmt.executeUpdate("INSERT INTO se560.userlist (username, usernode) VALUES ('"+email+"', '"+node+"')");
-				stmt.close();
-				con.close();
-				return true;
-			}
-			catch (Exception e) {
-				
-			}
-		}
-		return false;
-	}
-	
-	private String getStringFromDB(String table, String column, String condition) {
-		String output = "";
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT * FROM se560."+table+" "+condition);
-				if (rs.next()) {
-					output = rs.getString(column);
-				}
-				rs.close();
-				stmt.close();
-				con.close();
-			}
-			catch (Exception e) {
-
-			}
-		}
-		return output;
-	}
-
-	private String[] getStringsFromDB(String table, String column, String condition) {
-		String[] output = new String[0];
-		String[] temp;
-
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT * FROM se560."+table+" "+condition);
-				while (rs.next()) {
-					String url = rs.getString(column);
-					temp = new String[output.length + 1];
-					System.arraycopy(output, 0, temp, 0, 1);
-					temp[output.length] = url;
-				}
-				rs.close();
-				con.close();
-			}
-			catch (Exception e) {
-				return new String[0];
-			}
-		}
-		return output;
 	}
 }
