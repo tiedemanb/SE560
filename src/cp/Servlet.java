@@ -70,16 +70,16 @@ public class Servlet extends HttpServlet
 	    	Document xmlDoc = xml.newDocument();
 	    	Element base = xmlDoc.createElement("urls");
 
-	    	String[] urls = {"http://webplaces.net/i_c_weiner", "https://www.wheresURLdo?.com"};
+	    	String[] urls = DBHelper.getUrlsFromDB();
 	    	for (int i = 0; i < urls.length; i++) {
 	    		Element urlNode = xmlDoc.createElement("url");
-	    		urlNode.setAttribute("value", urls[i]);
+	    		urlNode.setTextContent(urls[i]);
 	    		base.appendChild(urlNode);
 	    	}
 
 	    	xmlDoc.appendChild(base);
 
-            response.setContentType("text/plain");
+            response.setContentType("text/xml");
             PrintWriter pw = response.getWriter();
 
 	    	try {

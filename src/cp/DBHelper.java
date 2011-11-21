@@ -26,55 +26,9 @@ public class DBHelper
 		}
 		return connection;
 	}
-
-	public static boolean addUrlToDB(String url) {
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				stmt.executeUpdate("INSERT INTO urls VALUES ('"+url+"')");
-				stmt.close();
-				con.close();
-				return true;
-			}
-			catch (Exception e) {
-				return false;
-			}
-		}
-		return false;
-	}
-
+	
 	public static String[] getUrlsFromDB() {
 		return getStringsFromDB("urls", "url", "");
-	}
-
-	public static String[][] getUsersFromDB() {
-		String[][] output = new String[0][2];
-		String[][] temp;
-
-		Connection con = getConnection();
-		if (con != null) {
-			try {
-				Statement stmt = con.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT * FROM userlist");
-				while (rs.next()) {
-					String email = rs.getString("username");
-					String node = rs.getString("node");
-					temp = new String[output.length + 1][2];
-					System.arraycopy(output, 0, temp, 0, output.length);
-					temp[output.length][0] = email;
-					temp[output.length][1] = node;
-					output = temp;
-				}
-				rs.close();
-				stmt.close();
-				con.close();
-			}
-			catch (SQLException e) {
-				return output;
-			}
-		}
-		return output;
 	}
 	
 	public static String[] registerNonExistingUrls(String[] urls) {
@@ -107,6 +61,35 @@ public class DBHelper
 			}
 		}
 		
+		return output;
+	}
+
+	public static String[][] getUsersFromDB() {
+		String[][] output = new String[0][2];
+		String[][] temp;
+
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userlist");
+				while (rs.next()) {
+					String email = rs.getString("username");
+					String node = rs.getString("node");
+					temp = new String[output.length + 1][2];
+					System.arraycopy(output, 0, temp, 0, output.length);
+					temp[output.length][0] = email;
+					temp[output.length][1] = node;
+					output = temp;
+				}
+				rs.close();
+				stmt.close();
+				con.close();
+			}
+			catch (SQLException e) {
+				return output;
+			}
+		}
 		return output;
 	}
 
@@ -197,8 +180,9 @@ public class DBHelper
 				while (rs.next()) {
 					String url = rs.getString(column);
 					temp = new String[output.length + 1];
-					System.arraycopy(output, 0, temp, 0, 1);
+					System.arraycopy(output, 0, temp, 0, output.length);
 					temp[output.length] = url;
+					output = temp;
 				}
 				rs.close();
 				con.close();
