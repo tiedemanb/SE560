@@ -38,7 +38,7 @@ public class Servlet extends HttpServlet
 
 	    boolean xmlOnly = false;
 	    String accept = request.getHeader("Accept");
-	    if (accept.matches(".*application/xml.*") && (! accept.matches(".*application/xhtml.*"))) {
+	    if ((accept != null) && accept.matches(".*application/xml.*") && (! accept.matches(".*application/xhtml.*"))) {
 	    	xmlOnly = true;
 	    }
 
@@ -91,6 +91,7 @@ public class Servlet extends HttpServlet
 		    	transformer.transform(source, result);
 		    	String xmlString = result.getWriter().toString();
 
+		    	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 		    	pw.println(xmlString);
 		    	return;
 	    	}
@@ -143,11 +144,13 @@ public class Servlet extends HttpServlet
             PrintWriter pw = response.getWriter();
             String[][] users = DBHelper.getUsersFromDB();
             if (xmlOnly) {
-            	pw.println("<users>");
+            	response.setContentType("text/xml");
+            	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+		    	pw.println("<users>");
             	for (int i = 0; i < users.length; i++) {
             		pw.println("<user>" +
-            			"<name>"+users[i][0]+"</name>" +
-            			"<link>/v2/users/"+users[i][0]+"</link>" +
+            			"<name>"+users[i][1]+"</name>" +
+            			"<link>/v2/users/"+users[i][1]+"</link>" +
             			"</user>");
             	}
             	pw.println("</users>");
@@ -157,34 +160,49 @@ public class Servlet extends HttpServlet
             	pw.println("<ul class=\"users\">");
             	for (int i = 0; i < users.length; i++) {
             		pw.println("<li class=\"user\">" +
-            			"<a href=\"/v2/users/"+users[i][1]+"\" rel=\"details\">"+users[i][0]+"</a>" +
+            			"<a href=\"/v2/users/"+users[i][1]+"\" rel=\"details\">"+users[i][1]+"</a>" +
             			"</li>");
             	}
             	pw.println("</ul>");
             }
 	    }
 	    else if (uri.matches("/v2/users/[^/]*")) {
-			String user = uri.substring(("/v2/users/").length());
-			String node = DBHelper.getUserNodeFromDB(user);
+            response.setContentType("text/plain");
             PrintWriter pw = response.getWriter();
-            if (xmlOnly) {
-            	//response.setContentType("application/xml");
-            	pw.println("stub");
-            }
-            else {
-            	response.setContentType("application/xhtml+xml");
-            	pw.println("<div class=\"user\">");
-            	pw.println("<p><a href=\""+user+"\" rel=\"email\">"+user+"</p>");
-            	pw.println("<p><a href=\""+node+"\" rel=\"node\">Visit node</a></p>");
-            	pw.println("<p><a href=\"/v2/users/bob@whitequail.org/urls\" rel=\"urls\">Urls</a></p>");
-            	//pw.println("<p><a href=\"/v2/users/bob@whitequail.org/notifications\" rel=\"notifications\">Notifications</a></p>");
-            	pw.println("</div>");
-            }
+            
+			String user = uri.substring(("/v2/users/").length());
+			if (DBHelper.getUserExistenceFromDB(user)) {
+				String[] userdata = DBHelper.getUserFromDB(user);
+				String userid = userdata[0];
+				String usernode = userdata[2];
+				
+				//String[][] userurls = DBHelper.getUserUrlsFromDB(userid);
+				//String[][] notifications = DBHelper.getUserNotificationsFromDB(userid);
+				
+	            if (xmlOnly) {
+	            	//response.setContentType("application/xml");
+	            	pw.println("stub");
+	            }
+	            else {
+	            	response.setContentType("application/xhtml+xml");
+	            	pw.println("<div class=\"user\">");
+	            	pw.println("<p><a href=\""+user+"\" rel=\"email\">"+user+"</a></p>");
+	            	pw.println("<p><a href=\""+usernode+"\" rel=\"node\">Visit node</a></p>");
+	            	pw.println("<p><a href=\"/v2/users/"+user+"/urls\" rel=\"urls\">Urls</a></p>");
+	            	pw.println("<p><a href=\"/v2/users/"+user+"/notifications\" rel=\"notifications\">Notifications</a></p>");
+	            	pw.println("</div>");
+	            }
+			}
+			else {
+				pw.println("user not found");
+			}
+			
+			return;
 		}
 	    else if (uri.matches("/v2/users/[^/]*/urls")) {
 			String user = uri.substring(("/v2/users/").length());
 			user = user.substring(0, user.length()-5);
-			String[] urls = DBHelper.getUserUrlsFromDB(user);
+			String[][] urls = DBHelper.getUserUrlsFromDB(user);
             PrintWriter pw = response.getWriter();
             if (xmlOnly) {
             	//response.setContentType("application/xml");
@@ -209,6 +227,12 @@ public class Servlet extends HttpServlet
 	    DocumentBuilder xml;
 	    DocumentBuilder bodyXml;
 
+	    boolean xmlOnly = false;
+	    String accept = request.getHeader("Accept");
+	    if ((accept != null) && accept.matches(".*application/xml.*") && (! accept.matches(".*application/xhtml.*"))) {
+	    	xmlOnly = true;
+	    }
+	    
 	    try {
 	    	xmlFactory = DocumentBuilderFactory.newInstance();
 		    xml = xmlFactory.newDocumentBuilder();
@@ -271,6 +295,7 @@ public class Servlet extends HttpServlet
 	            String[] registeredUrls = DBHelper.registerNonExistingUrls(urls);
 
 	            response.setContentType("text/xml");
+            	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 	            pw.println("<urls>");
 	            for (int i = 0; i < registeredUrls.length; i++) {
 	            	pw.println("<url>"+registeredUrls[i]+"</url>");
