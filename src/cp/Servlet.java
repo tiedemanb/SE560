@@ -54,7 +54,7 @@ public class Servlet extends HttpServlet
             return;
 	    }
 
-	    if ((uri.matches("/v1/whoami")) || (uri.matches("/v2/whoami"))) {
+	    if (uri.matches("/v1/whoami")) {
 	    	Document xmlDoc = xml.newDocument();
 	    	Element base = xmlDoc.createElement("url");
 	    	base.setAttribute("value", "http://somerandomurl.org");
@@ -62,24 +62,9 @@ public class Servlet extends HttpServlet
 
             response.setContentType("text/plain");
             PrintWriter pw = response.getWriter();
-
-	    	try {
-	    		Transformer transformer = TransformerFactory.newInstance().newTransformer();
-		    	transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-
-		    	StreamResult result = new StreamResult(new StringWriter());
-		    	DOMSource source = new DOMSource(xmlDoc);
-		    	transformer.transform(source, result);
-		    	String xmlString = result.getWriter().toString();
-
-		    	pw.println(xmlString);
-		    	return;
-	    	}
-	    	catch (TransformerException e) {
-	            response.setContentType("text/plain");
-	    		pw.println("whoami failed");
-	    		return;
-	    	}
+            pw.println("tiedemanb193schs@yahoo.com");
+            
+            return;
         }
 	    else if (uri.matches("/v1/lookupurls")) {
 	    	Document xmlDoc = xml.newDocument();
@@ -256,41 +241,43 @@ public class Servlet extends HttpServlet
     	}
         
 	    if (uri.matches("/v1/registerurls")) {
-	    	Node inBase = xmlDoc.getElementsByTagName("urls").item(0);
-	    	NodeList inUrls = inBase.getChildNodes();
-	    	String[] urls = new String[inUrls.getLength()];
-	    	for (int i = 0; i < inUrls.getLength(); i++) {
-	    		urls[i] = inUrls.item(i).getAttributes().getNamedItem("value").getNodeValue();
+	    	PrintWriter pw = response.getWriter();
+	    	
+	    	String[] urls = new String[0];
+	    	String[] temp;
+	    	
+	    	NodeList inBase = xmlDoc.getChildNodes();
+	    	for (int i = 0; i < inBase.getLength(); i++) {
+	    		if (inBase.item(i).getNodeName().equals("urls")) {
+	    			NodeList inUrls = inBase.item(i).getChildNodes();
+	    			for (int j = 0; j < inUrls.getLength(); j++) {
+	    				if (inUrls.item(j).getNodeName().equals("url")) {
+	    					temp = new String[urls.length + 1];
+	    					System.arraycopy(urls, 0, temp, 0, urls.length);
+	    					temp[urls.length] = inUrls.item(j).getChildNodes().item(0).getNodeValue();
+	    					urls = temp;
+	    				}
+	    			}
+	    		}
 	    	}
+	    	
+	    	if (urls.length > 0) {
+	            String[] registeredUrls = DBHelper.registerNonExistingUrls(urls);
 
-	    	Document xmlOut = xml.newDocument();
-	    	Element base = xmlOut.createElement("urls");
-
-	    	for (int i = 0; i < urls.length; i++) {
-	    		Element urlNode = xmlOut.createElement("url");
-	    		urlNode.setAttribute("value", urls[i]);
-	    		base.appendChild(urlNode);
+	            response.setContentType("text/xml");
+	            pw.println("<urls>");
+	            for (int i = 0; i < registeredUrls.length; i++) {
+	            	pw.println("<url>"+registeredUrls[i]+"</url>");
+	            }
+	            pw.println("</urls>");
+	            
+	            return;
 	    	}
-
-	    	xmlOut.appendChild(base);
-
-            response.setContentType("text/plain");
-            PrintWriter pw = response.getWriter();
-
-	    	try {
-	    		Transformer transformer = TransformerFactory.newInstance().newTransformer();
-		    	transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-
-		    	StreamResult result = new StreamResult(new StringWriter());
-		    	DOMSource source = new DOMSource(xmlOut);
-		    	transformer.transform(source, result);
-		    	String xmlString = result.getWriter().toString();
-
-		    	pw.println(xmlString);
-		    	return;
-	    	}
-	    	catch (TransformerException e) {
-	    		pw.println("registerurls failed");
+	    	else {
+	            response.setContentType("text/plain");
+	            
+	    		pw.println("error with validation");
+	    		
 	    		return;
 	    	}
 	    }

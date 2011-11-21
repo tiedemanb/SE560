@@ -33,6 +33,7 @@ public class DBHelper
 			try {
 				Statement stmt = con.createStatement();
 				stmt.executeUpdate("INSERT INTO urls VALUES ('"+url+"')");
+				stmt.close();
 				con.close();
 				return true;
 			}
@@ -73,6 +74,39 @@ public class DBHelper
 				return output;
 			}
 		}
+		return output;
+	}
+	
+	public static String[] registerNonExistingUrls(String[] urls) {
+		String[] output = new String[0];
+		String[] temp;
+		
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				for (int i = 0; i < urls.length; i++) {
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM urls WHERE url = '"+urls[i]+"'");
+					if (rs.next()) {
+						
+					}
+					else {
+						stmt.executeUpdate("INSERT INTO urls (url) VALUES ('"+urls[i]+"')");
+						temp = new String[output.length + 1];
+						System.arraycopy(output, 0, temp, 0, output.length);
+						temp[output.length] = urls[i];
+						output = temp;
+					}
+					rs.close();
+					stmt.close();
+				}
+				con.close();
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		
 		return output;
 	}
 
