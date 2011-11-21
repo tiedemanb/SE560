@@ -76,8 +76,21 @@ public class DBHelper
 		return output;
 	}
 
-	public static int getUserCountFromDB(String username) {
-		return getStringsFromDB("userlist", "username", "WHERE '"+username+"' = userlist.username").length;
+	public static boolean getUserExistenceFromDB(String username) {
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userlist WHERE username = '"+username+"'");
+				while (rs.next()) {
+					return true;
+				}
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		return false;
 	}
 
 	public static String[] getUserUrlsFromDB(String username) {
