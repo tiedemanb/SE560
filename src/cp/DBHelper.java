@@ -223,6 +223,100 @@ public class DBHelper
 		return output;
 	}*/
 	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * This method is a little complex. It returns a list of categories' ids.
+	 * If a category is not already in the database, it first adds it.
+	 */
+	public static int[] getCategoryIDs(String[] categories) {
+		int[] output = new int[categories.length];
+		
+		for (int i = 0; i < categories.length; i++) {
+			int id = getCategoryID(categories[i]);
+			output[i] = id;
+		}
+		
+		return output;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * Gets the id of a category.
+	 * Adds the category to the system first if it doesn't exist yet.
+	 * Returns -1 if it couldn't add the category for some reason.
+	 */
+	public static int getCategoryID(String category) {
+		int output = -1;
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM categorylist WHERE category = '"+category+"'");
+				if (rs.next()) {
+					output = rs.getInt("id");
+				}
+				else {
+					int count = addCategory(category);
+					if (count == 1) {
+						output = getCategoryID(category);
+					}
+				}
+				rs.close();
+				stmt.close();
+				con.close();
+			}
+			catch (Exception e) {
+
+			}
+		}
+		return output;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * Adds a category to the category table.
+	 */
+	private static int addCategory(String category) {
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				int count = stmt.executeUpdate("INSERT INTO categorylist (category) VALUES ('"+category+"')");
+				stmt.close();
+				con.close();
+				return count;
+			}
+			catch (Exception e) {
+
+			}
+		}
+		
+		return -1;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * 
+	 */
+	public static boolean addUrl(String url, String[] categories, String[] comments) {/*
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				int count = stmt.executeUpdate("INSERT INTO categorylist (category) VALUES ('"+category+"')");
+				stmt.close();
+				con.close();
+				return count;
+			}
+			catch (Exception e) {
+
+			}
+		}
+		
+		return -1;*/
+		return false;
+	}
+	
 	public static String getUrlFromDB(int urlid) {
 		return getStringFromDB("userurls", "url", "WHERE '"+urlid+"' = userurls.id");
 	}
@@ -294,17 +388,17 @@ public class DBHelper
 
         		// Remove existing tables.
         		String sql = "DROP TABLE IF EXISTS categories";
-        		stmt.executeUpdate(sql);
+        		stmt.execute(sql);
         		sql = "DROP TABLE IF EXISTS categorylist";
-	    		stmt.executeUpdate(sql);
+	    		stmt.execute(sql);
 	    		sql = "DROP TABLE IF EXISTS comments";
-				stmt.executeUpdate(sql);
+				stmt.execute(sql);
 				sql = "DROP TABLE IF EXISTS userurls";
-				stmt.executeUpdate(sql);
+				stmt.execute(sql);
 				sql = "DROP TABLE IF EXISTS userlist";
-				stmt.executeUpdate(sql);
+				stmt.execute(sql);
         		sql = "DROP TABLE IF EXISTS urls";
-        		stmt.executeUpdate(sql);
+        		stmt.execute(sql);
         		
         		// Create new tableset.
         		sql = "CREATE TABLE urls " +
@@ -326,7 +420,7 @@ public class DBHelper
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE categories " +
         			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, catid INT, " + 
-        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(catid))";
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(id))";
         		stmt.executeUpdate(sql);
         		stmt.close();
         		con.close();
@@ -366,7 +460,7 @@ public class DBHelper
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE IF NOT EXISTS categories " +
         			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, catid INT, " + 
-        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(catid))";
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(id))";
         		stmt.executeUpdate(sql);
         		
         		// Remove existing tables.
