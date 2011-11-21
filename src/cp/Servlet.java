@@ -318,10 +318,10 @@ public class Servlet extends HttpServlet
 	    	
 	    	if ((email.length()) > 0 && (node.length() > 0)) {
 	            response.setContentType("text/plain");
-	            if (DBHelper.getUserCountFromDB(email) != 0) {
+	            if (DBHelper.getUserExistenceFromDB(email)) {
 		            response.setContentType("text/plain");
 		            
-		    		pw.println("user already in database");
+		    		pw.println("user already in system");
 		    		return;
 	            }
 	            else if (DBHelper.createUser(email, node)) {
