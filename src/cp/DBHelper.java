@@ -98,7 +98,7 @@ public class DBHelper
 		return output;
 	}
 	
-	// Used in: /v2/users [POST], /v2/users/{user} [GET]
+	// Used in: /v2/users [POST], /v2/users/{user} [GET], /v2/users/{user}/urls [GET]
 	public static boolean getUserExistenceFromDB(String username) {
 		Connection con = getConnection();
 		if (con != null) {
@@ -134,7 +134,7 @@ public class DBHelper
 		return false;
 	}
 	
-	// Used in: /v2/users/{user} [GET]
+	// Used in: /v2/users/{user} [GET], /v2/users/{user}/urls [GET]
 	public static String[] getUserFromDB(String username) {
 		String[] output = new String[3];
 		
@@ -159,7 +159,7 @@ public class DBHelper
 		return output;
 	}
 	
-	// Used in: /v2/users/{user} [GET]
+	// Used in: /v2/users/{user}/urls [GET]
 	public static String[][] getUserUrlsFromDB(String id) {
 		String[][] output = new String[0][3];
 		String[][] temp;
@@ -284,5 +284,114 @@ public class DBHelper
 			}
 		}
 		return output;
+	}
+	
+	public static boolean setupDB() {
+		Connection con = DBHelper.getConnection();
+    	if (con != null) {
+        	try {
+        		Statement stmt = con.createStatement();
+
+        		// Remove existing tables.
+        		String sql = "DROP TABLE IF EXISTS categories";
+        		stmt.executeUpdate(sql);
+        		sql = "DROP TABLE IF EXISTS categorylist";
+	    		stmt.executeUpdate(sql);
+	    		sql = "DROP TABLE IF EXISTS comments";
+				stmt.executeUpdate(sql);
+				sql = "DROP TABLE IF EXISTS userurls";
+				stmt.executeUpdate(sql);
+				sql = "DROP TABLE IF EXISTS userlist";
+				stmt.executeUpdate(sql);
+        		sql = "DROP TABLE IF EXISTS urls";
+        		stmt.executeUpdate(sql);
+        		
+        		// Create new tableset.
+        		sql = "CREATE TABLE urls " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, url VARCHAR(500))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE userlist " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE userurls " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
+        			"FOREIGN KEY(userid) REFERENCES userlist(id))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE comments " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, comment VARCHAR(500), " + 
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE categorylist " +
+    				"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, category VARCHAR(100))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE categories " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, catid INT, " + 
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(catid))";
+        		stmt.executeUpdate(sql);
+        		stmt.close();
+        		con.close();
+        		return true;
+        	}
+        	catch (Exception e) {
+        		return false;
+        	}
+    	}
+    	
+    	return false;
+	}
+	
+	public static boolean resetDB() {
+		Connection con = DBHelper.getConnection();
+    	if (con != null) {
+        	try {
+        		Statement stmt = con.createStatement();
+
+        		// Create new tableset.
+        		String sql = "CREATE TABLE IF NOT EXISTS urls " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, url VARCHAR(500))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE IF NOT EXISTS userlist " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE IF NOT EXISTS userurls " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
+        			"FOREIGN KEY(userid) REFERENCES userlist(id))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE IF NOT EXISTS comments " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, comment VARCHAR(500), " + 
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE IF NOT EXISTS categorylist " +
+    				"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, category VARCHAR(100))";
+        		stmt.executeUpdate(sql);
+        		sql = "CREATE TABLE IF NOT EXISTS categories " +
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, catid INT, " + 
+        			"FOREIGN KEY(urlid) REFERENCES userurls(id), FOREIGN KEY(catid) REFERENCES categorylist(catid))";
+        		stmt.executeUpdate(sql);
+        		
+        		// Remove existing tables.
+        		sql = "TRUNCATE TABLE categories";
+        		stmt.executeUpdate(sql);
+        		sql = "TRUNCATE TABLE categorylist";
+	    		stmt.executeUpdate(sql);
+	    		sql = "TRUNCATE TABLE comments";
+				stmt.executeUpdate(sql);
+				sql = "TRUNCATE TABLE userurls";
+				stmt.executeUpdate(sql);
+				sql = "TRUNCATE TABLE userlist";
+				stmt.executeUpdate(sql);
+        		sql = "TRUNCATE TABLE urls";
+        		stmt.executeUpdate(sql);
+        		
+        		stmt.close();
+        		con.close();
+        		return true;
+        	}
+        	catch (Exception e) {
+        		return false;
+        	}
+    	}
+    	
+    	return false;
 	}
 }

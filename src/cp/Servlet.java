@@ -51,6 +51,7 @@ public class Servlet extends HttpServlet
             PrintWriter pw = response.getWriter();
 
             pw.println("error with parser");
+            
             return;
 	    }
 
@@ -91,54 +92,42 @@ public class Servlet extends HttpServlet
 		    	transformer.transform(source, result);
 		    	String xmlString = result.getWriter().toString();
 
-		    	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 		    	pw.println(xmlString);
-		    	return;
 	    	}
 	    	catch (TransformerException e) {
 	            response.setContentType("text/plain");
 	    		pw.println("lookupurls failed");
-	    		return;
 	    	}
+	    	
+	    	return;
         }
-	    else if (uri.matches("/v2/setup")) {
+	    else if (uri.matches("/admin/setup")) {
             response.setContentType("text/plain");
             PrintWriter pw = response.getWriter();
 
-        	Connection con = DBHelper.getConnection();
-        	if (con != null) {
-	        	try {
-	        		Statement stmt = con.createStatement();
-	        		String sql = "CREATE TABLE IF NOT EXISTS urls " +
-	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, url VARCHAR(500))";
-	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS userlist " +
-	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
-	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS userurls " +
-	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
-	        			"FOREIGN KEY(userid) REFERENCES userlist(id))";
-	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS comments " +
-	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, comment VARCHAR(500), " + 
-	        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
-	        		stmt.executeUpdate(sql);
-	        		sql = "CREATE TABLE IF NOT EXISTS categories " +
-	        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, urlid INT, category VARCHAR(500), " + 
-	        			"FOREIGN KEY(urlid) REFERENCES userurls(id))";
-	        		stmt.executeUpdate(sql);
-	        		stmt.close();
-	        		con.close();
-	        		pw.println("setup successful");
-	        		return;
-	        	}
-	        	catch (Exception e) {
-	        		pw.println("setup failed");
-	        		pw.println(e.getMessage());
-	        		return;
-	        	}
-        	}
-        	pw.println("DB could not be reached.");
+            boolean result = DBHelper.setupDB();
+            if (result) {
+        		pw.println("setup successful");
+            }
+            else {
+        		pw.println("setup failed");
+            }
+        	
+        	return;
+        }
+	    else if (uri.matches("/admin/reset")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+
+            boolean result = DBHelper.resetDB();
+            if (result) {
+        		pw.println("reset successful");
+            }
+            else {
+        		pw.println("reset failed");
+            }
+        	
+        	return;
         }
 	    else if (uri.matches("/v2/users")) {
             PrintWriter pw = response.getWriter();
@@ -165,6 +154,8 @@ public class Servlet extends HttpServlet
             	}
             	pw.println("</ul>");
             }
+            
+            return;
 	    }
 	    else if (uri.matches("/v2/users/[^/]*")) {
             response.setContentType("text/plain");
@@ -173,7 +164,7 @@ public class Servlet extends HttpServlet
 			String user = uri.substring(("/v2/users/").length());
 			if (DBHelper.getUserExistenceFromDB(user)) {
 				String[] userdata = DBHelper.getUserFromDB(user);
-				String userid = userdata[0];
+				//String userid = userdata[0];
 				String usernode = userdata[2];
 				
 				//String[][] userurls = DBHelper.getUserUrlsFromDB(userid);
@@ -200,20 +191,40 @@ public class Servlet extends HttpServlet
 			return;
 		}
 	    else if (uri.matches("/v2/users/[^/]*/urls")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+
 			String user = uri.substring(("/v2/users/").length());
 			user = user.substring(0, user.length()-5);
-			String[][] urls = DBHelper.getUserUrlsFromDB(user);
-            PrintWriter pw = response.getWriter();
-            if (xmlOnly) {
-            	//response.setContentType("application/xml");
-            	pw.println("stub");
-            }
-            else {
-            	response.setContentType("application/xhtml+xml");
-            	for (int i = 0; i < urls.length; i++) {
-                	pw.println("<a href=\"http://yournode.com/users/bob@whitequail.org/urls/54\" rel=\"url\">Metadata on http://somewhere.com</a>");
+			if (DBHelper.getUserExistenceFromDB(user)) {
+            	String host = request.getServerName();
+            	
+				String[] userdata = DBHelper.getUserFromDB(user);
+				String userid = userdata[0];
+				String usernode = userdata[2];
+				
+				String[][] userurls = DBHelper.getUserUrlsFromDB(userid);
+				//String[][] notifications = DBHelper.getUserNotificationsFromDB(userid);
+
+            	if (userurls.length == 0) {
+            		pw.println("no urls found");
             	}
-            }
+            	else if (xmlOnly) {
+	            	//response.setContentType("application/xml");
+	            	pw.println("stub");
+	            }
+	            else {
+	            	response.setContentType("application/xhtml+xml");
+	            	for (int i = 0; i < userurls.length; i++) {
+	                	pw.println("<a href=\""+host+"/v2/users/"+user+"/urls/"+userurls[i][0]+"\" rel=\"url\">Metadata on "+userurls[i][2]+"</a>");
+	            	}
+	            }
+			}
+			else {
+				pw.println("user not found");
+			}
+			
+			return;
 	    }
 	}
 
