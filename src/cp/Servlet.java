@@ -143,8 +143,14 @@ public class Servlet extends HttpServlet
             PrintWriter pw = response.getWriter();
             String[][] users = DBHelper.getUsersFromDB();
             if (xmlOnly) {
-            	//response.setContentType("application/xml");
-            	pw.println("stub");
+            	pw.println("<users>");
+            	for (int i = 0; i < users.length; i++) {
+            		pw.println("<user>" +
+            			"<name>"+users[i][0]+"</name>" +
+            			"<link>/v2/users/"+users[i][0]+"</link>" +
+            			"</user>");
+            	}
+            	pw.println("</users>");
             }
             else {
             	response.setContentType("application/xhtml+xml");
