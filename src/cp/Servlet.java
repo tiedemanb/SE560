@@ -7,6 +7,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import java.sql.*;
+import java.util.Date;
 import java.text.SimpleDateFormat;
 
 import javax.servlet.ServletException;
@@ -139,7 +140,7 @@ public class Servlet extends HttpServlet
             	for (int i = 0; i < users.length; i++) {
             		pw.println("<user>" +
             			"<name>"+users[i][1]+"</name>" +
-            			"<link>/v2/users/"+users[i][1]+"</link>" +
+            			"<link>"+users[i][2]+"/v2/users/"+users[i][1]+"</link>" +
             			"</user>");
             	}
             	pw.println("</users>");
@@ -149,7 +150,7 @@ public class Servlet extends HttpServlet
             	pw.println("<ul class=\"users\">");
             	for (int i = 0; i < users.length; i++) {
             		pw.println("<li class=\"user\">" +
-            			"<a href=\"/v2/users/"+users[i][1]+"\" rel=\"details\">"+users[i][1]+"</a>" +
+            			"<a href=\""+users[i][2]+"/v2/users/"+users[i][1]+"\" rel=\"details\">"+users[i][1]+"</a>" +
             			"</li>");
             	}
             	pw.println("</ul>");
@@ -171,16 +172,22 @@ public class Servlet extends HttpServlet
 				//String[][] notifications = DBHelper.getUserNotificationsFromDB(userid);
 				
 	            if (xmlOnly) {
-	            	//response.setContentType("application/xml");
-	            	pw.println("stub");
+	            	response.setContentType("text/xml");
+	            	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+	            	pw.println("<user>");
+	            	pw.println("<email>"+user+"</email>");
+	            	pw.println("<node>"+usernode+"</node>");
+	            	pw.println("<urls>"+usernode+"/v2/users/"+user+"/urls</urls>");
+	            	pw.println("<notifications>"+usernode+"/v2/users/"+user+"/notifications</notifications>");
+	            	pw.println("</user>");
 	            }
 	            else {
 	            	response.setContentType("application/xhtml+xml");
 	            	pw.println("<div class=\"user\">");
 	            	pw.println("<p><a href=\""+user+"\" rel=\"email\">"+user+"</a></p>");
 	            	pw.println("<p><a href=\""+usernode+"\" rel=\"node\">Visit node</a></p>");
-	            	pw.println("<p><a href=\"/v2/users/"+user+"/urls\" rel=\"urls\">Urls</a></p>");
-	            	pw.println("<p><a href=\"/v2/users/"+user+"/notifications\" rel=\"notifications\">Notifications</a></p>");
+	            	pw.println("<p><a href=\""+usernode+"/v2/users/"+user+"/urls\" rel=\"urls\">Urls</a></p>");
+	            	pw.println("<p><a href=\""+usernode+"/v2/users/"+user+"/notifications\" rel=\"notifications\">Notifications</a></p>");
 	            	pw.println("</div>");
 	            }
 			}
@@ -196,12 +203,10 @@ public class Servlet extends HttpServlet
 
 			String user = uri.substring(("/v2/users/").length());
 			user = user.substring(0, user.length()-5);
-			if (DBHelper.getUserExistenceFromDB(user)) {
-            	String host = request.getServerName();
-            	
+			if (DBHelper.getUserExistenceFromDB(user)) {            	
 				String[] userdata = DBHelper.getUserFromDB(user);
 				String userid = userdata[0];
-				String usernode = userdata[2];
+				String host = userdata[2];
 				
 				String[][] userurls = DBHelper.getUserUrlsFromDB(userid);
 				//String[][] notifications = DBHelper.getUserNotificationsFromDB(userid);
@@ -210,15 +215,99 @@ public class Servlet extends HttpServlet
             		pw.println("no urls found");
             	}
             	else if (xmlOnly) {
-	            	//response.setContentType("application/xml");
-	            	pw.println("stub");
+        	    	Document xmlDoc = xml.newDocument();
+        	    	Element base = xmlDoc.createElement("urls");
+        	    	
+        	    	for (int i = 0; i < userurls.length; i++) {
+        	    		Element urlNode = xmlDoc.createElement("url");
+        	    		Element uriNode = xmlDoc.createElement("uri");
+        	    		uriNode.setTextContent(host + "/users/" + user + "/urls/" + userurls[i][0]);
+        	    		Element bookmark = xmlDoc.createElement("bookmark");
+        	    		bookmark.setTextContent(userurls[i][2]);
+        	    		urlNode.appendChild(uriNode);
+        	    		urlNode.appendChild(bookmark);
+        	    		base.appendChild(urlNode);
+        	    	}
+
+        	    	xmlDoc.appendChild(base);
+        	    	
+        	    	try {
+        	    		Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        		    	transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+
+        		    	StreamResult result = new StreamResult(new StringWriter());
+        		    	DOMSource source = new DOMSource(xmlDoc);
+        		    	transformer.transform(source, result);
+        		    	String xmlString = result.getWriter().toString();
+
+        		    	response.setContentType("application/xml");
+        		    	pw.println(xmlString);
+        	    	}
+        	    	catch (TransformerException e) {
+        	            response.setContentType("text/plain");
+        	    		pw.println("lookupurls failed");
+        	    	}
 	            }
 	            else {
 	            	response.setContentType("application/xhtml+xml");
+	            	pw.println("<div class=\"urls\">");
 	            	for (int i = 0; i < userurls.length; i++) {
 	                	pw.println("<a href=\""+host+"/v2/users/"+user+"/urls/"+userurls[i][0]+"\" rel=\"url\">Metadata on "+userurls[i][2]+"</a>");
 	            	}
+	            	pw.println("</div>");
 	            }
+			}
+			else {
+				pw.println("user not found");
+			}
+			
+			return;
+	    }
+	    else if (uri.matches("/v2/users/[^/]*/urls/\\d*")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+
+			String[] data = uri.split("/v2/users/");
+			data = data[1].split("/urls/");
+			String user = data[0];
+			int urlid = Integer.parseInt(data[1]);
+
+			if (DBHelper.getUserExistenceFromDB(user)) {            	
+				String[] userdata = DBHelper.getUserFromDB(user);
+				int userid = Integer.parseInt(userdata[0]);
+				String host = userdata[2];
+				
+				if (DBHelper.getUrlIdFromDBUsingID(userid, urlid) > -1) {
+					String[] urldata = DBHelper.getUrlDataFromDB(urlid);
+					String[] categories = DBHelper.getCategoriesFromDB(urlid);
+					
+	            	if (xmlOnly) {
+		            	//response.setContentType("application/xml");
+		            	pw.println("stub");
+		            }
+		            else {
+		            	response.setContentType("application/xhtml+xml");
+		            	pw.println("<div class=\"url\">");
+		            	try {
+		            		pw.println("<abbr class=\"date-added\" title=\""+timestampFormatter(urldata[3])+"\">"+SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT).parse(urldata[3])+"</abbr>");
+		            	}
+		            	catch (Exception e) {
+		            		
+		            	}
+		            	pw.println("<a rel=\"source\" href=\""+urldata[2]+"\">"+urldata[2]+"</a>");
+		            	if (categories.length > 0) {
+		            		pw.println("<ul>Categories");
+		            		for (int i = 0; i < categories.length; i++) {
+		            			pw.println("<li><a href=\""+host+"/v2/categories/"+categories[i]+"\" rel=\"category\">"+categories[i]+"</a></li>");
+		            		}
+			            	pw.println("</ul>");
+		            	}
+		            	pw.println("</div>");
+		            }
+				}
+				else {
+					pw.println("url resource not found");
+				}				
 			}
 			else {
 				pw.println("user not found");

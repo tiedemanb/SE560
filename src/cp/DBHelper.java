@@ -136,7 +136,7 @@ public class DBHelper
 		return false;
 	}
 	
-	// Used in: /v2/users/{user} [GET], /v2/users/{user}/urls [GET], /v2/users/{user}/urls [POST]
+	// Used in: /v2/users/{user} [GET], /v2/users/{user}/urls [GET], /v2/users/{user}/urls [POST], /v2/users/{user}/urls/{urlid} [GET]
 	public static String[] getUserFromDB(String username) {
 		String[] output = new String[3];
 		
@@ -388,6 +388,29 @@ public class DBHelper
 		return output;
 	}
 	
+	// Used in: /v2/users/{user}/urls/{urlid} [GET]
+	public static int getUrlIdFromDBUsingID(int userid, int urlid) {
+		int output = -1;
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				// Still checking by userid here to, so you can't see one bookmark, even though it doesn't belong to that user.
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userurls WHERE userid = "+userid+" AND id = '"+urlid+"'");
+				if (rs.next()) {
+					output = rs.getInt("id");
+				}
+				rs.close();
+				stmt.close();
+				con.close();				
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		return output;
+	}
+	
 	// Used in: /v2/users/{user}/urls [POST]
 	private static int createUrl(int userid, String url, String timestamp) {
 		int count = 0;
@@ -407,38 +430,77 @@ public class DBHelper
 		return count;
 	}
 	
-	public static String getUrlFromDB(int urlid) {
-		return getStringFromDB("userurls", "url", "WHERE '"+urlid+"' = userurls.id");
-	}
-
-	public static String[] getCategoriesFromDB(int urlid) {
-		return getStringsFromDB("categories", "category", "WHERE '"+urlid+"' = userurls.id");
-	}
-
-	public static String[] getCommentsFromDB(int urlid) {
-		return getStringsFromDB("comments", "comment", "WHERE '"+urlid+"' = userurls.id");
-	}
 	
-	public static String getUserNodeFromDB(String username) {
-		return getStringFromDB("userlist", "node", "");
-	}
-	
-	public static String getStringFromDB(String table, String column, String condition) {
-		String output = "";
+	// Used in: /v2/users/{user}/urls/{urlid} [GET]
+	public static String[] getUrlDataFromDB(int urlid) {
+		String[] output = new String[4];
+		
 		Connection con = getConnection();
 		if (con != null) {
 			try {
 				Statement stmt = con.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT * FROM "+table+" "+condition);
-				if (rs.next()) {
-					output = rs.getString(column);
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userurls WHERE id = "+urlid);
+				while (rs.next()) {
+					String id = Integer.toString(rs.getInt("id"));
+					String userid = Integer.toString(rs.getInt("userid"));
+					String url = rs.getString("url");
+					String timestamp = rs.getString("timestamp");
+					output[0] = id;
+					output[1] = userid;
+					output[2] = url;
+					output[3] = timestamp;
 				}
-				rs.close();
-				stmt.close();
-				con.close();
 			}
-			catch (Exception e) {
+			catch (SQLException e) {
+				
+			}
+		}
+		return output;
+	}
+	
+	// Used in: ???
+	public static String[] getCommentsFromDB(int urlid) {
+		String[] output = new String[0];
+		String[] temp;
+		
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM comments WHERE urlid = "+urlid);
+				while (rs.next()) {
+					temp = new String[output.length+1];
+					System.arraycopy(output, 0, temp, 0, output.length);
+					temp[output.length] = rs.getString("comment");
+					output = temp;
+				}
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		return output;
+	}
 
+	// Used in: /v2/users/{user}/urls/{urlid} [GET]
+	public static String[] getCategoriesFromDB(int urlid) {
+		String[] output = new String[0];
+		String[] temp;
+		
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT category FROM categories, categorylist WHERE categorylist.urlid = "+urlid+" AND category.id = categorylist.catid");
+				while (rs.next()) {
+					temp = new String[output.length+1];
+					System.arraycopy(output, 0, temp, 0, output.length);
+					temp[output.length] = rs.getString("category");
+					output = temp;
+				}
+			}
+			catch (SQLException e) {
+				
 			}
 		}
 		return output;
@@ -498,7 +560,7 @@ public class DBHelper
         			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE userurls " +
-        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), timestamp VARCHAR(100)" + 
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), timestamp VARCHAR(100), " + 
         			"FOREIGN KEY(userid) REFERENCES userlist(id))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE comments " +
