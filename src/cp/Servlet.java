@@ -375,6 +375,71 @@ public class Servlet extends HttpServlet
 	    		return;
 	    	}
 	    }
+	    else if (uri.matches("/v2/users/[^/]*/urls")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+
+			String user = uri.substring(("/v2/users/").length());
+			user = user.substring(0, user.length()-5);
+			String[] userdata = DBHelper.getUserFromDB(user);
+			int userid = Integer.parseInt(userdata[0]);
+			
+			if (DBHelper.getUserExistenceFromDB(user)) {
+				String urlUri = "";
+				String[] categories = new String[0];
+				String[] comments = new String[0];
+				String[] temp;
+            	String host = request.getServerName();
+		    	
+		    	NodeList inBase = xmlDoc.getChildNodes();
+		    	for (int i = 0; i < inBase.getLength(); i++) {
+		    		if (inBase.item(i).getNodeName().equals("url")) {
+		    			NodeList inUsers = inBase.item(i).getChildNodes();
+		    			for (int j = 0; j < inUsers.getLength(); j++) {
+		    				if (inUsers.item(j).getNodeName().equals("uri")) {
+		    					urlUri = inUsers.item(j).getChildNodes().item(0).getNodeValue();
+		    				}
+		    				else if (inUsers.item(j).getNodeName().equals("categories")) {
+		    					NodeList inCategories = inUsers.item(j).getChildNodes();
+		    					for (int k = 0; k < inCategories.getLength(); k++) {
+		    						if (inCategories.item(k).getNodeName().equals("category")) {
+		    							temp = new String[categories.length + 1];
+		    							System.arraycopy(categories, 0, temp, 0, categories.length);
+		    							temp[categories.length] = inCategories.item(k).getChildNodes().item(0).getNodeValue();
+		    							categories = temp;
+		    						}
+		    					}
+		    				}
+		    				else if (inUsers.item(j).getNodeName().equals("comments")) {
+		    					NodeList inComments = inUsers.item(j).getChildNodes();
+		    					for (int k = 0; k < inComments.getLength(); k++) {
+		    						if (inComments.item(k).getNodeName().equals("comment")) {
+		    							temp = new String[comments.length + 1];
+		    							System.arraycopy(comments, 0, temp, 0, comments.length);
+		    							temp[comments.length] = inComments.item(k).getChildNodes().item(0).getNodeValue();
+		    							comments = temp;
+		    						}
+		    					}
+		    				}
+		    			}
+		    			break;
+		    		}
+		    	}
+				
+				if (DBHelper.addUrl(userid, urlUri, categories, comments)) {
+					response.setHeader("Location", host+"/v2/users/"+user+"/urls/"+Integer.toString(DBHelper.getUrlIdFromDB(userid, urlUri)));
+					response.setStatus(201);
+				}
+				else {
+					pw.println("url resource not added");
+				}
+			}
+			else {
+				pw.println("user not found");
+			}
+			
+			return;
+	    }
 	    else {
 	    	PrintWriter pw = response.getWriter();
             response.setContentType("text/plain");

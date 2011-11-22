@@ -1,5 +1,6 @@
 package cp;
 
+import java.io.PrintWriter;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 
@@ -134,7 +135,7 @@ public class DBHelper
 		return false;
 	}
 	
-	// Used in: /v2/users/{user} [GET], /v2/users/{user}/urls [GET]
+	// Used in: /v2/users/{user} [GET], /v2/users/{user}/urls [GET], /v2/users/{user}/urls [POST]
 	public static String[] getUserFromDB(String username) {
 		String[] output = new String[3];
 		
@@ -295,26 +296,113 @@ public class DBHelper
 	}
 	
 	// Used in: /v2/users/{user}/urls [POST]
-	/*
-	 * 
-	 */
-	public static boolean addUrl(String url, String[] categories, String[] comments) {/*
+	private static void addCategoryReference(int urlid, int catid) {
 		Connection con = getConnection();
 		if (con != null) {
 			try {
 				Statement stmt = con.createStatement();
-				int count = stmt.executeUpdate("INSERT INTO categorylist (category) VALUES ('"+category+"')");
+				stmt.executeUpdate("INSERT INTO categories (urlid, catid) VALUES ("+urlid+", "+catid+")");
 				stmt.close();
 				con.close();
-				return count;
 			}
 			catch (Exception e) {
 
 			}
 		}
-		
-		return -1;*/
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	private static void addComment(int urlid, String comment) {
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				stmt.executeUpdate("INSERT INTO comments (urlid, comment) VALUES ("+urlid+", '"+comment+"')");
+				stmt.close();
+				con.close();
+			}
+			catch (Exception e) {
+
+			}
+		}
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * Controller for adding a user url resource.
+	 */
+	public static boolean addUrl(int userid, String url, String[] categories, String[] comments) {
+		int urlid = getNewUrlIdFromDB(userid, url);
+		if (urlid != -1) {
+			int[] categoryIds = getCategoryIDs(categories);
+			for (int i = 0; i < categories.length; i++) {
+				if (categoryIds[i] != -1) {
+					addCategoryReference(urlid, categoryIds[i]);
+				}
+			}
+			for (int i = 0; i < comments.length; i++) {
+				addComment(urlid, comments[i]);
+			}
+			return true;
+		}
+
 		return false;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	/*
+	 * If the url is not yet created, create it and return the ID.
+	 * Otherwise, return -1.
+	 */
+	private static int getNewUrlIdFromDB(int userid, String url) {
+		if (getUrlIdFromDB(userid, url) == -1) {
+			if (createUrl(userid, url) == 1) {
+				return getUrlIdFromDB(userid, url);
+			}
+		}
+
+		return -1;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	public static int getUrlIdFromDB(int userid, String url) {
+		int output = -1;
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userurls WHERE userid = "+userid+" AND url = '"+url+"'");
+				if (rs.next()) {
+					output = rs.getInt("id");
+				}
+				rs.close();
+				stmt.close();
+				con.close();				
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		return output;
+	}
+	
+	// Used in: /v2/users/{user}/urls [POST]
+	private static int createUrl(int userid, String url) {
+		int count = 0;
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				count = stmt.executeUpdate("INSERT INTO userurls (userid, url) VALUES ("+userid+", '"+url+"')");
+				stmt.close();
+				con.close();
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		
+		return count;
 	}
 	
 	public static String getUrlFromDB(int urlid) {
