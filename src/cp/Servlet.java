@@ -8,6 +8,7 @@ import java.io.StringWriter;
 
 import java.sql.*;
 import java.util.Date;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
 import javax.servlet.ServletException;
@@ -288,13 +289,13 @@ public class Servlet extends HttpServlet
 		            else {
 		            	response.setContentType("application/xhtml+xml");
 		            	pw.println("<div class=\"url\">");
+		            	pw.println("<a rel=\"source\" href=\""+urldata[2]+"\">"+urldata[2]+"</a>");
 		            	try {
-		            		pw.println("<abbr class=\"date-added\" title=\""+timestampFormatter(urldata[3])+"\">"+SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT).parse(urldata[3])+"</abbr>");
+		            		pw.println("<abbr class=\"date-added\" title=\""+timestampFormatter(urldata[3])+"\">"+timestampFormatterTwo(urldata[3])+"</abbr>");
 		            	}
 		            	catch (Exception e) {
 		            		
 		            	}
-		            	pw.println("<a rel=\"source\" href=\""+urldata[2]+"\">"+urldata[2]+"</a>");
 		            	if (categories.length > 0) {
 		            		pw.println("<ul>Categories");
 		            		for (int i = 0; i < categories.length; i++) {
@@ -312,6 +313,81 @@ public class Servlet extends HttpServlet
 			else {
 				pw.println("user not found");
 			}
+			
+			return;
+	    }
+	    else if (uri.matches("/v2/categories")) {
+	    	String[] categories = DBHelper.getCategoriesFromDB();
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+            if (xmlOnly) {
+            	//response.setContentType("application/xml");
+            	pw.println("stub");
+            }
+            else {
+            	response.setContentType("application/xhtml+xml");
+            	pw.println("<div class=\"categories\">");
+            	for (int i = 0; i < categories.length; i++) {
+            		pw.println("<a class=\"category\" href=\""+request.getServerName()+"/v2/categories/"+categories[i]+"\">"+categories[i]+"</a>");
+            	}
+            	pw.println("</div>");
+            }
+	    }
+	    else if (uri.matches("/v2/categories/[^/]*")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+			
+            String category = uri.substring(15);
+            
+			String[][] userurls = DBHelper.getUserUrlsFromDBByCategory(category);
+			if (userurls == null) {
+				pw.println("broke");
+			}
+			else if (userurls.length == 0) {
+        		pw.println("no urls found");
+        	}
+        	else if (xmlOnly) {
+    	    	Document xmlDoc = xml.newDocument();
+    	    	Element base = xmlDoc.createElement("urls");
+    	    	
+    	    	for (int i = 0; i < userurls.length; i++) {
+    	    		Element urlNode = xmlDoc.createElement("url");
+    	    		Element uriNode = xmlDoc.createElement("uri");
+    	    		uriNode.setTextContent(request.getServerName() + "/v2/users/" + userurls[i][1] + "/urls/" + userurls[i][0]);
+    	    		Element bookmark = xmlDoc.createElement("bookmark");
+    	    		bookmark.setTextContent(userurls[i][2]);
+    	    		urlNode.appendChild(uriNode);
+    	    		urlNode.appendChild(bookmark);
+    	    		base.appendChild(urlNode);
+    	    	}
+
+    	    	xmlDoc.appendChild(base);
+    	    	
+    	    	try {
+    	    		Transformer transformer = TransformerFactory.newInstance().newTransformer();
+    		    	transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+
+    		    	StreamResult result = new StreamResult(new StringWriter());
+    		    	DOMSource source = new DOMSource(xmlDoc);
+    		    	transformer.transform(source, result);
+    		    	String xmlString = result.getWriter().toString();
+
+    		    	response.setContentType("application/xml");
+    		    	pw.println(xmlString);
+    	    	}
+    	    	catch (TransformerException e) {
+    	            response.setContentType("text/plain");
+    	    		pw.println("lookupurls failed");
+    	    	}
+            }
+            else {
+            	response.setContentType("application/xhtml+xml");
+            	pw.println("<div class=\"urls\">");
+            	for (int i = 0; i < userurls.length; i++) {
+                	pw.println("<a class=\"url\" href=\""+request.getServerName()+"/v2/users/"+userurls[i][1]+"/urls/"+userurls[i][0]+"\" rel=\"url\">Metadata on "+userurls[i][2]+"</a>");
+            	}
+            	pw.println("</div>");
+            }
 			
 			return;
 	    }
@@ -464,6 +540,73 @@ public class Servlet extends HttpServlet
 	    		return;
 	    	}
 	    }
+	    else if (uri.matches("/v2/users/[^/]*/urls/\\d*")) {
+            response.setContentType("text/plain");
+            PrintWriter pw = response.getWriter();
+
+			String user = uri.split("/v2/users/")[1];
+			String urlid = user.split("/urls/")[1];
+			user = user.split("/urls/")[0];
+			
+			String[] userdata = DBHelper.getUserFromDB(user);
+			int userid = Integer.parseInt(userdata[0]);
+			String host = userdata[2];
+			
+			if (DBHelper.getUserExistenceFromDB(user)) {
+				String urlUri = "";
+				String[] categories = new String[0];
+				String[] comments = new String[0];
+				String[] temp;
+		    	
+		    	NodeList inBase = xmlDoc.getChildNodes();
+		    	for (int i = 0; i < inBase.getLength(); i++) {
+		    		if (inBase.item(i).getNodeName().equals("url")) {
+		    			NodeList inUsers = inBase.item(i).getChildNodes();
+		    			for (int j = 0; j < inUsers.getLength(); j++) {
+		    				if (inUsers.item(j).getNodeName().equals("uri")) {
+		    					urlUri = inUsers.item(j).getChildNodes().item(0).getNodeValue();
+		    				}
+		    				else if (inUsers.item(j).getNodeName().equals("categories")) {
+		    					NodeList inCategories = inUsers.item(j).getChildNodes();
+		    					for (int k = 0; k < inCategories.getLength(); k++) {
+		    						if (inCategories.item(k).getNodeName().equals("category")) {
+		    							temp = new String[categories.length + 1];
+		    							System.arraycopy(categories, 0, temp, 0, categories.length);
+		    							temp[categories.length] = inCategories.item(k).getChildNodes().item(0).getNodeValue();
+		    							categories = temp;
+		    						}
+		    					}
+		    				}
+		    				else if (inUsers.item(j).getNodeName().equals("comments")) {
+		    					NodeList inComments = inUsers.item(j).getChildNodes();
+		    					for (int k = 0; k < inComments.getLength(); k++) {
+		    						if (inComments.item(k).getNodeName().equals("comment")) {
+		    							temp = new String[comments.length + 1];
+		    							System.arraycopy(comments, 0, temp, 0, comments.length);
+		    							temp[comments.length] = inComments.item(k).getChildNodes().item(0).getNodeValue();
+		    							comments = temp;
+		    						}
+		    					}
+		    				}
+		    			}
+		    			break;
+		    		}
+		    	}
+				
+				if (DBHelper.replaceUrl(userid, urlUri, urlid, categories, comments)) {
+					response.setHeader("Location", host+"/v2/users/"+user+"/urls/"+Integer.toString(DBHelper.getUrlIdFromDB(userid, urlUri)));
+					response.setStatus(201);
+				}
+				else {
+					pw.println("url resource not replaced");
+				}
+			}
+			else {
+				pw.println("user not found");
+			}
+			
+			return;
+	    }
 	    else if (uri.matches("/v2/users/[^/]*/urls")) {
             response.setContentType("text/plain");
             PrintWriter pw = response.getWriter();
@@ -540,5 +683,14 @@ public class Servlet extends HttpServlet
     
 	public String timestampFormatter(String timestamp) {
 		return timestamp = timestamp.substring(0, timestamp.length()-2) + ":" + timestamp.substring(timestamp.length()-2, timestamp.length());
+	}
+    
+	public String timestampFormatterTwo(String timestamp) {
+		String[] data1 = timestamp.split("T");
+		String[] data2 = data1[0].split("-");
+		String output1 = data2[1] + "/" + data2[2] + "/" + data2[0];
+		String[] data3 = data1[1].split("[+]");
+		String output2 = data3[0];
+		return output1 + " " + output2 + ", GMT";
 	}
 }

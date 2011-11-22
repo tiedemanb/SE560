@@ -481,6 +481,52 @@ public class DBHelper
 		}
 		return output;
 	}
+	
+	public static boolean replaceUrl(int userid, String url, String url_ID, String[] categories, String[] comments) {
+		String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'h:m:ssZ").format(new Date());
+		int urlid = Integer.parseInt(url_ID);
+		
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				int count = stmt.executeUpdate("UPDATE userurls SET url = '"+url+"', timestamp = '"+timestamp+"' WHERE id = "+urlid);
+				
+				stmt.close();
+				con.close();
+				
+				int[] categoryIds = getCategoryIDs(categories);
+				for (int i = 0; i < categories.length; i++) {
+					if (categoryIds[i] != -1) {
+						addCategoryReference(urlid, categoryIds[i]);
+					}
+				}
+				for (int i = 0; i < comments.length; i++) {
+					addComment(urlid, comments[i]);
+				}
+
+			}
+			catch (SQLException e) {
+				
+			}
+		}
+		
+		getNewUrlIdFromDB(userid, url, timestamp);
+		if (urlid == -1) {
+			int[] categoryIds = getCategoryIDs(categories);
+			for (int i = 0; i < categories.length; i++) {
+				if (categoryIds[i] != -1) {
+					addCategoryReference(urlid, categoryIds[i]);
+				}
+			}
+			for (int i = 0; i < comments.length; i++) {
+				addComment(urlid, comments[i]);
+			}
+			return true;
+		}
+
+		return false;
+	}
 
 	// Used in: /v2/users/{user}/urls/{urlid} [GET]
 	public static String[] getCategoriesFromDB(int urlid) {
@@ -491,7 +537,7 @@ public class DBHelper
 		if (con != null) {
 			try {
 				Statement stmt = con.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT category FROM categories, categorylist WHERE categorylist.urlid = "+urlid+" AND category.id = categorylist.catid");
+				ResultSet rs = stmt.executeQuery("SELECT category FROM categories, categorylist WHERE categories.urlid = "+urlid+" AND categories.catid = categorylist.id");
 				while (rs.next()) {
 					temp = new String[output.length+1];
 					System.arraycopy(output, 0, temp, 0, output.length);
@@ -503,6 +549,64 @@ public class DBHelper
 				
 			}
 		}
+		return output;
+	}
+	
+	public static String[] getCategoriesFromDB() {
+		String[] output = new String[0];
+		String[] temp;
+
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT category FROM categorylist");
+				while (rs.next()) {
+					String cat = rs.getString("category");
+					temp = new String[output.length + 1];
+					System.arraycopy(output, 0, temp, 0, output.length);
+					temp[output.length] = cat;
+					output = temp;
+				}
+				rs.close();
+				con.close();
+			}
+			catch (Exception e) {
+
+			}
+		}
+		return output;
+	}
+	
+	public static String[][] getUserUrlsFromDBByCategory(String category) {
+		String[][] output = new String[0][3];
+		String[][] temp;
+
+		Connection con = getConnection();
+		if (con != null) {
+			try {
+				Statement stmt = con.createStatement();
+				ResultSet rs = stmt.executeQuery("SELECT * FROM userlist, userurls, categorylist, categories WHERE '"+category+"' = categorylist.category AND userlist.id = userurls.userid AND categorylist.id = categories.catid AND userurls.id = categories.urlid");
+				while (rs.next()) {
+					String urlid = Integer.toString(rs.getInt("userurls.id"));
+					String userid = rs.getString("userlist.username");
+					String url = rs.getString("userurls.url");
+					temp = new String[output.length + 1][3];
+					System.arraycopy(output, 0, temp, 0, output.length);
+					temp[output.length][0] = urlid;
+					temp[output.length][1] = userid;
+					temp[output.length][2] = url;
+					output = temp;
+				}
+				rs.close();
+				stmt.close();
+				con.close();
+			}
+			catch (SQLException e) {
+				return null;
+			}
+		}
+		
 		return output;
 	}
 
