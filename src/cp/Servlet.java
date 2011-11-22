@@ -383,13 +383,13 @@ public class Servlet extends HttpServlet
 			user = user.substring(0, user.length()-5);
 			String[] userdata = DBHelper.getUserFromDB(user);
 			int userid = Integer.parseInt(userdata[0]);
+			String host = userdata[2];
 			
 			if (DBHelper.getUserExistenceFromDB(user)) {
 				String urlUri = "";
 				String[] categories = new String[0];
 				String[] comments = new String[0];
 				String[] temp;
-            	String host = request.getServerName();
 		    	
 		    	NodeList inBase = xmlDoc.getChildNodes();
 		    	for (int i = 0; i < inBase.getLength(); i++) {
@@ -447,5 +447,9 @@ public class Servlet extends HttpServlet
     		pw.println("page not found");
     		return;
 	    }
+	}
+    
+	public String timestampFormatter(String timestamp) {
+		return timestamp = timestamp.substring(0, timestamp.length()-2) + ":" + timestamp.substring(timestamp.length()-2, timestamp.length());
 	}
 }

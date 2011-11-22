@@ -1,6 +1,7 @@
 package cp;
 
 import java.io.PrintWriter;
+import java.util.Date;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 
@@ -332,7 +333,8 @@ public class DBHelper
 	 * Controller for adding a user url resource.
 	 */
 	public static boolean addUrl(int userid, String url, String[] categories, String[] comments) {
-		int urlid = getNewUrlIdFromDB(userid, url);
+		String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'h:m:ssZ").format(new Date());
+		int urlid = getNewUrlIdFromDB(userid, url, timestamp);
 		if (urlid != -1) {
 			int[] categoryIds = getCategoryIDs(categories);
 			for (int i = 0; i < categories.length; i++) {
@@ -354,9 +356,9 @@ public class DBHelper
 	 * If the url is not yet created, create it and return the ID.
 	 * Otherwise, return -1.
 	 */
-	private static int getNewUrlIdFromDB(int userid, String url) {
+	private static int getNewUrlIdFromDB(int userid, String url, String timestamp) {
 		if (getUrlIdFromDB(userid, url) == -1) {
-			if (createUrl(userid, url) == 1) {
+			if (createUrl(userid, url, timestamp) == 1) {
 				return getUrlIdFromDB(userid, url);
 			}
 		}
@@ -387,13 +389,13 @@ public class DBHelper
 	}
 	
 	// Used in: /v2/users/{user}/urls [POST]
-	private static int createUrl(int userid, String url) {
+	private static int createUrl(int userid, String url, String timestamp) {
 		int count = 0;
 		Connection con = getConnection();
 		if (con != null) {
 			try {
 				Statement stmt = con.createStatement();
-				count = stmt.executeUpdate("INSERT INTO userurls (userid, url) VALUES ("+userid+", '"+url+"')");
+				count = stmt.executeUpdate("INSERT INTO userurls (userid, url, timestamp) VALUES ("+userid+", '"+url+"', '"+timestamp+"')");
 				stmt.close();
 				con.close();
 			}
@@ -496,7 +498,7 @@ public class DBHelper
         			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE userurls " +
-        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), timestamp VARCHAR(100)" + 
         			"FOREIGN KEY(userid) REFERENCES userlist(id))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE comments " +
@@ -536,7 +538,7 @@ public class DBHelper
         			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100), node VARCHAR(500))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE IF NOT EXISTS userurls " +
-        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), " + 
+        			"(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, userid INT, url VARCHAR(500), timestamp VARCHAR(100), " + 
         			"FOREIGN KEY(userid) REFERENCES userlist(id))";
         		stmt.executeUpdate(sql);
         		sql = "CREATE TABLE IF NOT EXISTS comments " +
