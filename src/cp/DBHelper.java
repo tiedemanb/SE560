@@ -490,8 +490,9 @@ public class DBHelper
 		if (con != null) {
 			try {
 				Statement stmt = con.createStatement();
-				int count = stmt.executeUpdate("UPDATE userurls SET url = '"+url+"', timestamp = '"+timestamp+"' WHERE id = "+urlid);
-				
+				stmt.executeUpdate("DELETE FROM categories WHERE urlid = "+urlid);
+				stmt.executeUpdate("DELETE FROM comments WHERE urlid = "+urlid);
+				stmt.executeUpdate("UPDATE userurls SET url = '"+url+"', timestamp = '"+timestamp+"' WHERE id = "+urlid);
 				stmt.close();
 				con.close();
 				
@@ -504,25 +505,11 @@ public class DBHelper
 				for (int i = 0; i < comments.length; i++) {
 					addComment(urlid, comments[i]);
 				}
-
+				return true;
 			}
 			catch (SQLException e) {
 				
 			}
-		}
-		
-		getNewUrlIdFromDB(userid, url, timestamp);
-		if (urlid == -1) {
-			int[] categoryIds = getCategoryIDs(categories);
-			for (int i = 0; i < categories.length; i++) {
-				if (categoryIds[i] != -1) {
-					addCategoryReference(urlid, categoryIds[i]);
-				}
-			}
-			for (int i = 0; i < comments.length; i++) {
-				addComment(urlid, comments[i]);
-			}
-			return true;
 		}
 
 		return false;

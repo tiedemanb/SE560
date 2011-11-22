@@ -594,8 +594,7 @@ public class Servlet extends HttpServlet
 		    	}
 				
 				if (DBHelper.replaceUrl(userid, urlUri, urlid, categories, comments)) {
-					response.setHeader("Location", host+"/v2/users/"+user+"/urls/"+Integer.toString(DBHelper.getUrlIdFromDB(userid, urlUri)));
-					response.setStatus(201);
+					response.setStatus(200);
 				}
 				else {
 					pw.println("url resource not replaced");
